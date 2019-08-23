@@ -1,0 +1,44 @@
+#include <msp430.h>
+
+void main( void ) // Main execution body
+{
+  //unsigned int i; //delay variable
+
+  const int adder = 10; // increment value
+
+  WDTCTL = WDTPW | WDTHOLD; // Stop watchdog timer
+
+  P1REN |= 0x02; // Enable resistor on P1.1
+  P1OUT  = 0x02; // Set resistor to pull-up, P1.0 low
+
+  P1DIR  |= 0x01 + BIT2 + BIT3; // Set P1.0 as output and P1.1 as intput while  enabling p1.2 and p1.3
+  P1SEL |= BIT2+BIT3;                       // P1.2 and P1.3 options select
+    TA0CCR0 = 512-1;                          // PWM Period
+    TA0CCTL1 = OUTMOD_7;                      // CCR1 reset/set
+    TA0CCR1 = 384;                            // CCR1 PWM duty cycle
+    TA0CCTL2 = OUTMOD_7;                      // CCR2 reset/set
+    TA0CCR2 = 128;                            // CCR2 PWM duty cycle
+    TA0CTL = TASSEL_2 + MC_1 + TACLR;
+
+  P4OUT  = 0x80; // Set P4.7 high
+  P4DIR  = 0x80; // Set P4.7 as output
+
+  while( 1 )
+  {
+    if( !(P1IN & 0x02) ) // If push button is pressed (holding is also count as pressed)
+    {
+      // Alternation of the led display to indicate mode change
+      P1OUT ^= 0x01;
+
+      TA0CCTL1 = OUTMOD_7;                      // CCR1 reset/set
+      TA0CCR1 = 384 + adder;                            // CCR1 PWM duty cycle
+
+      P4OUT ^= 0x80;
+      TA0CCTL2 = OUTMOD_7;                      // CCR2 reset/set
+      TA0CCR2 = 128 + adder;                            // CCR2 PWM duty cycle
+      TA0CTL = TASSEL_2 + MC_1 + TACLR;
+
+      //for( i=0; i<30000; i++ );
+    }
+  }
+}
