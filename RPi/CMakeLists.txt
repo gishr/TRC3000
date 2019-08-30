@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 2.8)
 project( first )
+set(raspicam_DIR "/usr/local/lib/cmake")
+find_package(raspicam REQUIRED)
 find_package( OpenCV REQUIRED )
 add_executable( first first.cpp )
+add executable(output video_stream.cpp)
 target_link_libraries( first ${OpenCV_LIBS} )
+target_link_libraries( record ${raspicam_CV_LIBS} )
+
