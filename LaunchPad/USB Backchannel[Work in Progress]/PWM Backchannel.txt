@@ -1,0 +1,126 @@
+// Basic MSP430 and driverLib #includes
+#include "msp430.h"
+
+#include "msp430F5529.h"
+
+#include "driverlib/MSP430F5xx_6xx/wdt_a.h"
+#include "driverlib/MSP430F5xx_6xx/ucs.h"
+#include "driverlib/MSP430F5xx_6xx/pmm.h"
+#include "driverlib/MSP430F5xx_6xx/sfr.h"
+
+// USB API #includes
+#include "USB_config/descriptors.h"
+#include "USB_API/USB_Common/device.h"
+#include "USB_API/USB_Common/types.h"
+#include "USB_API/USB_Common/usb.h"
+
+#include "USB_app/usbConstructs.h"
+
+// Application #includes
+#include "BCUart.h"           // Include the backchannel UART "library"
+#include "hal.h"              // Modify hal.h to select your hardware
+
+#include <stdio.h>
+#include <stdlib.h>
+
+
+char buf_usbToBcuart[128];
+
+void UsbInitialization()
+{
+
+    PMM_setVCore(PMM_CORE_LEVEL_2);
+
+    initPorts();           // Config all the GPIOS for low-power (output low)
+    initClocks(1100000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz
+    bcUartInit();          // Init the back-channel UART
+    USB_setup(TRUE,TRUE);  // Init USB; if a USB host (PC) is present, connect
+    __enable_interrupt();  // Enable interrupts globally
+
+}
+
+void UsbExecution()
+{
+    __delay_cycles(10000);
+    sprintf(buf_usbToBcuart,"\r\n( %d,%d )",TA0CCR1,TA0CCR2);
+    bcUartSend(buf_usbToBcuart,11);
+}
+
+void MotorPWM()
+{
+    TA0CCTL0 = CCIE; // CCR0 interrupt enabled
+    TA0CTL = TASSEL_2 | MC_1 | ID_3; // SMCLK/8, upmode
+    TA0CCR0 = 10000; // I have to calculate it, but I was lazy Hz
+
+    P1DIR |= BIT0 + BIT2 + BIT3; // P1.0 pin set as output the rest are input
+    P1SEL |= BIT0 + BIT2+BIT3;
+
+    //TA0CCR0 = 512-1;// PWM Period
+    TA0CCTL1 = OUTMOD_7;                      // CCR1 reset/set
+    TA0CCR1 = 250;                            // CCR1 PWM duty cycle
+    TA0CCTL2 = OUTMOD_7;                      // CCR2 reset/set
+    TA0CCR2 = 0;                            // CCR2 PWM duty cycle
+    TA0CTL = TASSEL_2 + MC_1 + TACLR;
+
+    P4OUT &= 0x00; // Shut down pins on P4
+    P4DIR &= 0x00; // Set P4 pins as output
+    P4DIR |= BIT7; // P4.7 pin set as output the rest are input
+
+    P2REN |= BIT1; // Enable internal pull-up/down resistors for P2
+    P2OUT |= BIT1; //Select pull-up mode for P2.1
+
+    P2IE |= BIT1; // P2.1 interrupt enabled
+    P2IES |= BIT1; // P2.1 Hi/lo edge
+    P2IFG &= ~BIT1; // P2.1 IFG cleared
+
+    //_BIS_SR(CPUOFF + GIE); // Enter LPM0 w/ interrupt
+
+    __enable_interrupt();
+}
+
+void main(void)
+{
+    WDTCTL = WDTPW + WDTHOLD;       // Halt the dog
+
+    UsbInitialization();
+    MotorPWM();
+
+    while(1)
+    {
+        UsbExecution();
+    }
+}
+
+// Timer A0 interrupt service routine
+#pragma vector=TIMER0_A0_VECTOR
+__interrupt void Timer_A0 (void)
+{
+P1OUT ^= BIT0; // Toggle P1.0                       // switch on and switch off
+
+}
+
+// Port 2 interrupt service routine
+#pragma vector=PORT2_VECTOR
+__interrupt void Port_2(void)
+{
+static int debounce = 0;
+
+while(debounce <= 100)
+{
+if (~P2IN & BIT1) debounce++;
+else debounce = 0;
+}
+P4OUT ^= BIT7; // Toggle P4.7
+
+TA0CCTL1 = OUTMOD_7;                      // CCR1 reset/set
+TA0CCR1 ^= 128;
+TA0CCTL2 = OUTMOD_7;                      // CCR2 reset/set
+TA0CCR2 ^= 0;                            // CCR2 PWM duty cycle
+TA0CTL = TASSEL_2 + MC_1 + TACLR;
+debounce = 0;
+
+P2IFG &= ~BIT1; // P2.1 IFG cleared
+}
+
+
+
