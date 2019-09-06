@@ -25,7 +25,7 @@ int main(int, char**)
         Canny(edges, edges, 0, 30, 3);
         imshow("edges", edges);
         cout << "code reached for loop" << endl;
-        if(waitKey(30) >= 0) break;
+        if(waitKey(25) >= 0){}
     }
     // the camera will be deinitialized automatically in VideoCapture destructor
     return 0;
