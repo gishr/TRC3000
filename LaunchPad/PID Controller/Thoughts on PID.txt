@@ -1,0 +1,14 @@
+Set Value: the value we want | the value that is required
+Actual Value: The value read from the encoder\sensor etc
+Output Value£ºPWM output in this case
+
+Execution body: Motors | The self balancing rover as a whole
+
+Positive execution: rotates forward to balance
+Negative execution: rotates backward to balance
+
+Propotional Gain (Kp): the ratio between actual and output, if only propotional gain existing i.e u(t) = Kp * e(t), steady state error exists
+
+Integral Gain(Ki): integration on time, u(t) = Kp*e(t) + Ki*integral (e(t)) on t, a PI controller eliminates steady state error discussed above
+
+In our case, a PI controller is enough

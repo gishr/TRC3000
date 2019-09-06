@@ -1,0 +1,15 @@
+	PMM_setVCore(PMM_CORE_LEVEL_2);
+
+	initPorts();
+	initClocks(8000000);
+	bcUartInit();
+	USB_setup(TRUE,TRUE);
+	__enable_interrupt();
+
+	while (1)
+	{
+        __delay_cycles(10000);
+        sprintf(buf_usbToBcuart,"%d,%d\r",123);
+        bcUartSend(buf_usbToBcuart,11);
+
+	}
