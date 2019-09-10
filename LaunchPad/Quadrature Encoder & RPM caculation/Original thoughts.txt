@@ -1,0 +1,152 @@
+
+#include <msp430.h> 
+#include <stdint.h>
+
+#define LINE_A   BIT4	// change these two to whichever digital input pin you are using
+#define LINE_B   BIT5
+
+
+uint8_t pos;
+uint16_t time;
+
+
+/**
+ * main.c
+ */
+int main(void)
+{
+	WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
+
+	// Initialize globals
+	pos = 0;
+	time = 0;
+
+	// Configure input for encoder pins
+	P1DIR &= ~(LINE_A + LINE_B);	// set pins to input
+	P1OUT |= LINE_A | LINE_B;
+	P1REN |= LINE_A | LINE_B;
+
+
+    // set interrupts and enable
+    P1IES |= LINE_A + LINE_B;		// initialise with falling edging detection
+    P1IFG = 0;                      // Clear all P1 interrupt flags
+    P1IE = LINE_A | LINE_B;			// enable interupt for encoder
+
+
+    // setup a timer interrupt here
+    // example: 1000Hz sampling freq
+
+	int target_RPM = 10;     
+
+    while (1)
+    {
+    	// do something
+
+    	if (msecond >= 10)
+    	{
+    		// 100Hz, dt = 0.01s (but will this really run at 100Hz?)
+			// do RPM calculation here
+
+			// calculate:
+			// pos/time (dt) -> rad/s -> RPM
+
+			// can use a moving average filter here, output: filtered_RPM
+    	}
+
+    	if (msecond >= PID loop time)
+    	{
+
+ 			// control loop freq = ?
+ 			// dt_control = ?
+
+	    	int RPM_err = target_RPM - filtered_RPM;
+
+	    	int PWM_output = PID equation here;
+
+
+	    	// forward, if PWM_output is +ve
+	    	PWM_register1 = abs(PWM_output);
+	    	PWM_register2 = 0 or full PWM;		// 0 = fast decay, full PWM = slow decay
+
+	    	// backward, if PWM_output is -ve
+	    	PWM_register2 = abs(PWM_output);
+	    	PWM_register1 = 0 or full PWM;		// 0 = fast decay, full PWM = slow decay
+	    }
+    }
+
+}
+
+
+// dummy timer interrupt code here
+void one_ms_timer_ISR()
+{
+	msecond++;	// will this overflow? if so how to solve it?
+}
+
+
+// this part is from the original example
+#pragma vector=PORT1_VECTOR
+__interrupt void port1_ISR(void)
+{
+
+    uint8_t state = P1IN & (LINE_A | LINE_B);
+
+    switch(__even_in_range(P1IV, P1IV__P1IFG7)) 
+    {
+    	// use P1IV_P1IFGX to switch between interrupt of different pins in the same port
+
+
+        case P1IV__NONE:   break;
+        case P1IV__P1IFG0:				// Pin 1.0
+            if (P1IES & LINE_B) {       // if falling edge on Line B
+                if (state & LINE_A) {   // Transitioned from State 3 to State 2
+                    pos += 1;
+                }
+                else {
+                    pos -= 1;           // Transitioned from State 1 to State 0
+                }
+            }
+            else {                      // else rising edge on Line B
+                if (state & LINE_A) {   // Transitioned from State 2 to State 3
+                    pos -= 1;
+                }
+                else {                  // Transitioned from State 0 to State 1
+                    pos += 1;
+                }
+            }
+
+            P1IES ^= LINE_B;
+            break;
+        case P1IV__P1IFG1:				// Pin 1.1
+            if (P1IES & LINE_A) {       // if falling edge on Line A
+                if (state & LINE_B) {   // Transitioned from State 3 to State 1
+                    pos -= 1;
+                }
+                else {
+                    pos += 1;           // Transitioned from State 2 to State 0
+                }
+            }
+            else {                      // else rising edge on Line A
+                if (state & LINE_B) {   // Transitioned from State 1 to State 3
+                    pos += 1;
+                }
+                else {                  // Transitioned from State 0 to State 2
+                    pos -= 1;
+                }
+            }
+
+            P1IES ^= LINE_A;
+            break;
+        case P1IV__P1IFG2: break;	// Pin 1.2
+        case P1IV__P1IFG3: break;	// Pin 1.3
+        case P1IV__P1IFG4: break;	// Pin 1.4
+        case P1IV__P1IFG5: break;	// Pin 1.5
+        case P1IV__P1IFG6: break;	// Pin 1.6
+        case P1IV__P1IFG7: break;	// Pin 1.7
+        default:   break;
+    }
+
+
+}
+
+

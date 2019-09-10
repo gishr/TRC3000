@@ -112,7 +112,7 @@ void MotorPWM()
      UsbExecution();
      count++;
      }
-
+     TA0CCR1 = TA0CCR1;
      TA0CCTL2 = OUTMOD_7;                      // CCR2 reset/set
      TA0CCR2 = 0;                            // CCR2 PWM duty cycle
 
@@ -177,7 +177,20 @@ TA0CCTL1 = OUTMOD_7;                      // CCR1 reset/set
 //float test = PID_execution(100.0);
 //TA0CCR1 = test;
 
-TA0CCR1 ^= 500;// 500 / 512
+//TA0CCR1 ^= 500;// 500 / 512
+
+int count;
+
+while (count < 1000)
+{
+//TA0CCR1 = 400;// CCR1 PWM duty cycle 400/512
+TA0CCR1 = PID_execution(100.0);
+UsbExecution();
+count++;
+}
+UsbExecution(); //Initial display
+MotorPWM();
+
 
 TA0CCTL2 = OUTMOD_7;                      // CCR2 reset/set
 TA0CCR2 ^= 0;                            // CCR2 PWM duty cycle
