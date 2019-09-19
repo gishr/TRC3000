@@ -90,4 +90,7 @@ void mpu6050_read_accelerometer(accelerometer_t *acc);
 void mpu6050_read_gyroscope(gyroscope_t *acc);
 void mpu6050_init();
 
+void UsbInitialization();
+void UsbExecution(accelerometer_t acc);
+
 #endif /* INCLUDE_MPU6050_H_ */

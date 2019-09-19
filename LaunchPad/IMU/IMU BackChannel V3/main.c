@@ -15,10 +15,12 @@ int main(void) {
 
     // IMU initialization
     mpu6050_init();
+    UsbInitialization();
 
     while (1) {
        // get accelerometer data
        mpu6050_read_accelerometer(&acc_t);
+       UsbExecution(acc_t);
        // get gyroscope data
        mpu6050_read_gyroscope(&gyro_t);
     }

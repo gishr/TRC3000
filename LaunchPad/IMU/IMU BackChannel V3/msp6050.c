@@ -2,6 +2,28 @@
 #include "mpu6050.h"
 #include "i2c_msp430f5529.h"
 
+#include "msp430F5529.h"
+
+#include "driverlib/MSP430F5xx_6xx/wdt_a.h"
+#include "driverlib/MSP430F5xx_6xx/ucs.h"
+#include "driverlib/MSP430F5xx_6xx/pmm.h"
+#include "driverlib/MSP430F5xx_6xx/sfr.h"
+
+// USB API #includes
+#include "USB_config/descriptors.h"
+#include "USB_API/USB_Common/device.h"
+#include "USB_API/USB_Common/types.h"
+#include "USB_API/USB_Common/usb.h"
+
+#include "USB_app/usbConstructs.h"
+
+// Application #includes
+#include "BCUart.h"           // Include the backchannel UART "library"
+#include "hal.h"              // Modify hal.h to select your hardware
+
+#include <stdio.h>
+#include <stdlib.h>
+
 static unsigned char tx_buffer[8];
 static unsigned char rx_buffer[8];
 
@@ -76,4 +98,29 @@ void mpu6050_init() {
     mpu6050_write_register(GYRO_BASE_CTRL,GYRO_BASE_CTRL_COMMAND);
     // accel sensitivity CTRL1 address 0x10
     mpu6050_write_register(ACCEL_BASE_CTRL,ACCEL_BASE_CTRL_COMMAND);
+}
+
+char buf_usbToBcuart[128];
+
+void UsbInitialization()
+{
+
+    PMM_setVCore(PMM_CORE_LEVEL_3);
+
+    initPorts();           // Config all the GPIOS for low-power (output low)
+
+    initClocks(1100000);   // Config clocks. MCLK=SMCLK=FLL=8MHz; ACLK=REFO=32kHz 8000000
+
+
+    bcUartInit();          // Init the back-channel UART
+    USB_setup(TRUE,TRUE);  // Init USB; if a USB host (PC) is present, connect
+    __enable_interrupt();  // Enable interrupts globally
+
+}
+
+void UsbExecution(accelerometer_t acc)
+{
+    __delay_cycles(10000); //10000 1000000
+    sprintf(buf_usbToBcuart,"\r\n( %d,%d,%d )",acc.xout,acc.yout,acc.zout);
+    bcUartSend(buf_usbToBcuart,11);
 }
