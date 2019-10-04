@@ -1,0 +1,99 @@
+
+
+#define FULL                        0x40
+
+#define YES                        0x30
+
+
+    static unsigned char tx_buffer[8];
+    static unsigned char rx_buffer[8];
+
+    static unsigned char key =  FULL;
+
+    static unsigned char key2 = YES;
+
+    static unsigned char *TXData = 0;
+
+    static unsigned char *RXData = 0;
+
+    unsigned char flag;
+
+
+#include <msp430.h>
+
+int main(void)
+{
+    // POINTER WORKS
+    // tx & rx buffer will be updated automatically when interrupt triggers
+
+    tx_buffer[0] = key;
+    TXData = tx_buffer;
+
+    RXData = rx_buffer;
+
+  WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
+
+  //tx_buffer[0] = key;
+
+  //P4SEL |= BIT4 + BIT5;
+
+  P3SEL |= BIT3+BIT4;                       // P3.3,4 = USCI_A0 TXD/RXD
+  UCA0CTL1 |= UCSWRST;                      // **Put state machine in reset**
+
+  // Frequency of baud rate clock / baud rate
+
+  UCA0CTL1 |= UCSSEL_2;                     // SMCLK
+  UCA0BR0 = 9;                              // 1MHz 115200 (see User's Guide)
+
+  UCA0BR1 = 0;                              // 1MHz 115200
+  UCA0MCTL |= UCBRS_1 + UCBRF_0;            // Modulation UCBRSx=1, UCBRFx=0
+  UCA0CTL1 &= ~UCSWRST;                     // **Initialize USCI state machine**
+  UCA0IE |= UCRXIE + UCTXIE;                         // Enable USCI_A0 RX interrupt
+
+
+  __bis_SR_register(GIE);       // Enter LPM0, interrupts enabled
+
+
+
+while(1)
+{
+    UCA0TXBUF = *TXData ;
+    flag = rx_buffer[0];
+
+    if (flag == '@')
+    {
+        tx_buffer[0] = key2;
+        TXData = tx_buffer;
+    }
+
+  __no_operation();                         // For debugger
+}
+
+}
+
+// Echo back RXed character, confirm TX buffer is ready first
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=USCI_A0_VECTOR
+__interrupt void USCI_A0_ISR(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+{
+  switch(__even_in_range(UCA0IV,4))
+  {
+  case 0:break;                             // Vector 0 - no interrupt
+  case 2:                                   // Vector 2 - RXIFG
+    while (!(UCA0IFG&UCTXIFG));             // USCI_A0 TX buffer ready?
+    UCA0TXBUF = UCA0RXBUF;                  // TX -> RXed character
+
+    *RXData = UCA0RXBUF;
+
+
+    break;
+  case 4:break;                             // Vector 4 - TXIFG
+  default: break;
+  }
+}
+
